@@ -17,3 +17,7 @@ git clone https://github.com/petercorke/toolbox-common-matlab.git common
 ## Running 
 
 To run the simulation, you run ``Simulation.m``.
+
+## Sample Video
+
+https://user-images.githubusercontent.com/27013004/156867404-e8273bf4-f5d2-4c01-a034-3a394dd4570a.mp4
