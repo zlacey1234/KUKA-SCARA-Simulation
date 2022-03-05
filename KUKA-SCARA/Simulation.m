@@ -9,7 +9,7 @@ clc
 path_to_workspace = updatePaths();
 
 path_to_CAD = [path_to_workspace, '\KUKA_CAD'];
-
+%%
 % Load the SCARA Model
 mdl_scara_kuka_kr_6_r700z200
 
