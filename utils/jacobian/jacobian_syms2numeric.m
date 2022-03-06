@@ -88,17 +88,20 @@ function J_num = ...
     % Number of Joints 
     number_of_joints = robot.n();
 
-    % If the numeric joint values are in degrees, convert to radians in
-    % order to get the proper numeric Kinematic Jacobian Matrix (expects
-    % radian values)
-    if strcmp(angle_type, 'deg')
-        joints_numeric = deg2rad(joints_numeric);
-    end
-
     for joint_index = 1:number_of_joints
+        if L(joint_index).isrevolute
+            % If the numeric joint values are in degrees, and the joint is
+            % a revolute joint, convert to radians in order to get the 
+            % proper numeric Kinematic Jacobian Matrix (expects radian 
+            % values)
+            if strcmp(angle_type, 'deg')
+                joints_numeric(joint_index) = ...
+                    deg2rad(joints_numeric(joint_index));
+            end
+        end
         joint_string = ['q' num2str(joint_index)];
         J_sym = subs(J_sym, joint_string, joints_numeric(joint_index));
     end
-    
+
     J_num = double(J_sym);
 end
