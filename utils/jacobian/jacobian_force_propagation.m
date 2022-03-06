@@ -1,31 +1,55 @@
-function J = jacobian_force_propagation(robot, joints, varargin)
+function J = ...
+    jacobian_force_propagation(robot, joints, angleType, varargin)
 %% Function: Jacobian_Force_Propagation
 % Summary: This is a function that iteratively solves for the Kinematic
 %          Jacobian Matrix using the Force Propagation Method.
 %
+% Important Note:
+%   It is recommended to avoid using this function for numeric 
+%   calculations of the Kinematic Jacobian matrix. It may be useful to 
+%   then create a custom jacobian function specific for the robot (i.e., 
+%   create a method similar to jacobian_scara_rh3frh5515 example but for 
+%   the robot being developed for). This custom jacobian will likely be 
+%   more computationally efficient to integrate to trajectory generation 
+%   or control methods that may require repeated calculations of the 
+%   Jacobian Matrix (at various instances in time).
+%
 % INPUT: 
-%   robot: 
+%   robot: @SerialLink Object created using the Robotics Toolbox by Peter
+%          Corke.
 %
-%   joints:
+%   joints: Joint Values 
 %
-%   
+% OUTPUT:
+%   J: A (6 x N) matrix that represents the kinematic Jacobian of the
+%      Serial Robot. N is the number of active joints in the kinematic
+%      serial chain.
+%
+% AUTHOR : ZACHARY LACEY
+% AFFILIATION : UNIVERSITY OF CALIFORNIA, LOS ANGELES
+% EMAIL : zlacey@g.ucla.edu
+%         zlacey1234@gmail.com
 %%
     % Default Options
-    defaultJointValueType = 'numeric';
+    defaultJointValueType = 'symbolic';
     expectedJointValueType = {'symbolic', 'numeric'};
-    
+    expectedAngleTypes = {'deg', 'rad'};
+
     p = inputParser;
     
     addRequired(p, 'robot', @(x)(true));
     addRequired(p, 'joints', @(x)(true));
+    addRequired(p, 'angleType', ...
+        @(x) any(validatestring(x, expectedAngleTypes)))
     addOptional(p, 'jointValueType', defaultJointValueType, ...
         @(x) any(validatestring(x, expectedJointValueType)));
     
-    parse(p, robot, joints, varargin{:});
+    parse(p, robot, joints, angleType, varargin{:});
     
     joint_value_type = ...
         validatestring(p.Results.jointValueType, expectedJointValueType); 
-    
+    angle_type = validatestring(p.Results.angleType, expectedAngleTypes);
+
     % Unpack the Robot Object
     L = robot.links;
     
@@ -36,16 +60,14 @@ function J = jacobian_force_propagation(robot, joints, varargin)
     force_torque = sym('ft%d', [1 6], 'real');
     
     joint_ft = sym(zeros(number_of_joints, 1));
-    
+
     if strcmp(joint_value_type, 'numeric')
-        f_i_i = zeros(3, number_of_joints);
-        n_i_i = zeros(3, number_of_joints);
-    elseif strcmp(joint_value_type, 'symbolic')
-        f_i_i = sym(zeros(3, number_of_joints));
-        n_i_i = sym(zeros(3, number_of_joints));
-    else 
-        disp('Error: Not a valid jointValueType');
+        joints_numeric = joints;
+        joints = sym('q%d', [1 number_of_joints], 'real');
     end
+    
+    f_i_i = sym(zeros(3, number_of_joints));
+    n_i_i = sym(zeros(3, number_of_joints));
     
     joint_0_wrist_span = 1:1:number_of_joints;
     
@@ -86,11 +108,9 @@ function J = jacobian_force_propagation(robot, joints, varargin)
     
     for joint_index = number_of_joints:-1:1
         if L(joint_index).isrevolute
-            disp('Revolute')
             joint_ft(joint_index) = ...
                 transpose(n_i_i(:, joint_index)) * [0; 0; 1];
         else
-            disp('Prismatic')
             joint_ft(joint_index) = ...
                 transpose(f_i_i(:, joint_index)) * [0; 0; 1];
         end 
@@ -108,4 +128,19 @@ function J = jacobian_force_propagation(robot, joints, varargin)
     
     J_0_N = simplify(jacobian_rotation_0_N * J_N_N);
     J = J_0_N;
+
+    if strcmp(joint_value_type, 'numeric')
+        for joint_index = 1:number_of_joints
+            if L(joint_index).isrevolute
+                if strcmp(angle_type, 'deg')
+                    joints_numeric(joint_index) = ...
+                        deg2rad(joints_numeric(joint_index));
+                end
+            end
+            joint_string = ['q' num2str(joint_index)];
+            J = subs(J, joint_string, joints_numeric(joint_index));
+        end
+
+        J = double(J);
+    end
 end
