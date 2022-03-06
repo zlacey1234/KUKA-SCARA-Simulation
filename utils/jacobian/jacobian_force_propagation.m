@@ -18,7 +18,22 @@ function J = ...
 %   robot: @SerialLink Object created using the Robotics Toolbox by Peter
 %          Corke.
 %
-%   joints: Joint Values 
+%   joints: Joint Values.
+%
+%   'angleType', {'deg', 'rad'}:         This allows the user to specify
+%                                        what angle measurements type to
+%                                        return the joint trajectory in. 
+%
+% OPTIONAL INPUTS:
+%   jointValueType, {'symbolic', 'numeric'}: A string that allows the 
+%                                            user to specify whether the 
+%                                            'joints' input is a vector 
+%                                            of symbolic variables (i.e., 
+%                                            joints = [th1, th2, th3, d4]) 
+%                                            or if the joints are actual 
+%                                            joint values. [angleType
+%                                            should not matter if the
+%                                            option is 'symbolic']
 %
 % OUTPUT:
 %   J: A (6 x N) matrix that represents the kinematic Jacobian of the

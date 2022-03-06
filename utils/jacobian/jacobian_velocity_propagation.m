@@ -1,6 +1,49 @@
-function J = jacobian_velocity_propagation(robot, joints, varargin)
-%%
-
+function J = ...
+    jacobian_velocity_propagation(robot, joints, angleType, varargin)
+%% Function: Jacobian_Velocity_Propagation
+% Summary: This is a function that iteratively solves for the Kinematic
+%          Jacobian Matrix using the Velocity Propagation Method.
+%
+% Important Note:
+%   It is recommended to avoid using this function for numeric 
+%   calculations of the Kinematic Jacobian matrix. It may be useful to 
+%   then create a custom jacobian function specific for the robot (i.e., 
+%   create a method similar to jacobian_scara_rh3frh5515 example but for 
+%   the robot being developed for). This custom jacobian will likely be 
+%   more computationally efficient to integrate to trajectory generation 
+%   or control methods that may require repeated calculations of the 
+%   Jacobian Matrix (at various instances in time).
+%
+% INPUTS: 
+%   robot: @SerialLink Object created using the Robotics Toolbox by Peter
+%          Corke.
+%
+%   joints: Joint Values.
+%
+%   'angleType', {'deg', 'rad'}:         This allows the user to specify
+%                                        what angle measurements type to
+%                                        return the joint trajectory in. 
+%
+% OPTIONAL INPUTS:
+%   jointValueType, {'symbolic', 'numeric'}: A string that allows the 
+%                                            user to specify whether the 
+%                                            'joints' input is a vector 
+%                                            of symbolic variables (i.e., 
+%                                            joints = [th1, th2, th3, d4]) 
+%                                            or if the joints are actual 
+%                                            joint values. [angleType
+%                                            should not matter if the
+%                                            option is 'symbolic']
+%
+% OUTPUTS:
+%   J: A (6 x N) matrix that represents the kinematic Jacobian of the
+%      Serial Robot. N is the number of active joints in the kinematic
+%      serial chain.
+%
+% AUTHOR : ZACHARY LACEY
+% AFFILIATION : UNIVERSITY OF CALIFORNIA, LOS ANGELES
+% EMAIL : zlacey@g.ucla.edu
+%         zlacey1234@gmail.com   
 %%
     % Default Options
     defaultJointValueType = 'symbolic';
