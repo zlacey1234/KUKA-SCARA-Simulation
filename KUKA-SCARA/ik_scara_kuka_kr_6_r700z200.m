@@ -1,5 +1,6 @@
-function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_wrist, ...
-    T_wrist_tool, angleType, varargin)
+function [q_trajectory, infeasible_ik_boolean] = ...
+    ik_scara_kuka_kr_6_r700z200(robot, T_wrist, T_wrist_tool, ...
+    angleType, varargin)
 %% Function: ik_scara_kuka_kr_6_r700z200
 % Summary: The ik_scara_kuka_kr_6_r700z200 function takes the inverse 
 %          kinematics of the KUKA KR 6 R700 Z200
@@ -76,6 +77,9 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_wrist, ...
     % of trajectory points. 
     q_trajectory = zeros(number_of_trajectory_points, number_of_joints);
     
+    % Infeasible Inverse Kinematics Flag (0: Valid, 1: Invalid)
+    infeasible_ik_boolean = 0;
+    
     % For each trajectory point
     for trajectory_point_index = 1:number_of_trajectory_points
         
@@ -110,14 +114,23 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_wrist, ...
             theta2 = pi;
         else
             if strcmp(elbow, 'up') 
-                theta2 = atan2(sqrt(1 - b^2), b);
+                if isreal(sqrt(1 - b^2))
+                    theta2 = atan2(sqrt(1 - b^2), b);
+                else
+                    theta2 = 0;
+                    infeasible_ik_boolean = 1;
+                end
             elseif strcmp(elbow, 'down')
-                theta2 = atan2(-sqrt(1 - b^2), b);
+                if isreal(sqrt(1 - b^2))
+                    theta2 = atan2(-sqrt(1 - b^2), b);
+                else
+                    theta2 = 0;
+                    infeasible_ik_boolean = 1;
+                end
             else 
                 print("Error! elbow variable: " + str(elbow))
             end
         end
-        
         
         % Solve for theta1
         k1 = L3*cos(theta2) + L2;
