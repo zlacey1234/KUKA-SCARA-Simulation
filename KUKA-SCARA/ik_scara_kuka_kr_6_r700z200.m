@@ -1,24 +1,30 @@
-function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
-    T_wrist_tool, varargin)
+function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_wrist, ...
+    T_wrist_tool, angleType, varargin)
 %% Function: ik_scara_kuka_kr_6_r700z200
-% Summary: The ik_scara_kuka_kr_6_r700z200 function takes the inverse kinematics 
-%          of the KUKA KR 6 R700 Z200
+% Summary: The ik_scara_kuka_kr_6_r700z200 function takes the inverse 
+%          kinematics of the KUKA KR 6 R700 Z200
 %   
 % INPUTS:
 %   robot:     The robot object that was created using Peter Corke's
 %              Robotics Toolbox in MATLAB (using the SerialLink Object
 %              Class).
 %
-%   T_tool:    A matrix containing the pose (position and orientation) of
-%              the tool (Gripper) in the Homogeneous Transformation
-%              Representation. The Transformation is specifically the
-%              Homogeneous Transformation of the tool (Center point 
-%              between the finger tips of the Yamaha Gripper) w.r.t the
-%              Base Frame {B} of the KUKA KR 6 SCARA Arm. The matrix can
-%              be described with (4 x 4) matrix for a Single Homogeneous
-%              Transformation or as (4 x 4 x N) matrix where we describe N
-%              sets of Homogeneous matrices (these can be a sequence to
-%              form a trajectory with N trajectory points). 
+%   T_wrist:    A matrix containing the pose (position and orientation) of
+%               the wrist in the Homogeneous Transformation 
+%               Representation. 
+%
+%   T_wrist_tool: The Transformation is specifically the Homogeneous 
+%                 Transformation of the tool (Center point between the 
+%                 finger tips of the Gripper) w.r.t the Wrist Frame {W} of 
+%                 the KUKA KR 6 SCARA Arm. The matrix can be described 
+%                 with (4 x 4) matrix for a Single Homogeneous
+%                 Transformation or as (4 x 4 x N) matrix where we 
+%                 describe N sets of Homogeneous matrices (these can be a 
+%                 sequence to form a trajectory with N trajectory points). 
+%
+%   'angleType', {'deg', 'rad'}:         This allows the user to specify
+%                                        what angle measurements type to
+%                                        return the joint trajectory in. 
 %
 % OPTIONAL INPUTS: 
 %   'elbowOption', {'up', 'down'}:       This is the option to specify if
@@ -26,10 +32,6 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
 %                                        joint (theta2) since the ik has
 %                                        two possible solutions for the
 %                                        elbow joint. 
-%
-%   'angleType', {'deg', 'rad'}:         This allows the user to specify
-%                                        what angle measurements type to
-%                                        return the joint trajectory in. 
 %   
 % AUTHOR : ZACHARY LACEY
 % AFFILIATION : UNIVERSITY OF CALIFORNIA, LOS ANGELES
@@ -39,21 +41,19 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
     % Default Options
     defaultElbow = 'up';              % theta2 joint
     expectedElbow = {'up', 'down'};   % Possible Elbow Options
-    defaultAngleType = 'deg';
     expectedAngleTypes = {'deg', 'rad'};
-    
     
     p = inputParser;
     
     addRequired(p, 'robot', @(x)(true));
     addRequired(p, 'T_tool', @(x)(true));
     addRequired(p, 'T_wrist_tool', @(x)(true));
+    addRequired(p, 'angleType', ...
+        @(x) any(validatestring(x, expectedAngleTypes)));
     addOptional(p, 'elbowOption', defaultElbow, ...
         @(x) any(validatestring(x, expectedElbow)));
-    addOptional(p, 'angleType', defaultAngleType, ...
-        @(x) any(validatestring(x, expectedAngleTypes)));
     
-    parse(p, robot, T_tool, T_wrist_tool, varargin{:});
+    parse(p, robot, T_wrist, T_wrist_tool, angleType, varargin{:});
     
     elbow = validatestring(p.Results.elbowOption, expectedElbow);
     angle_type = validatestring(p.Results.angleType, expectedAngleTypes);
@@ -67,10 +67,10 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
     number_of_joints = robot.n();
     
     % Unpack the Homogenous Tool Point (or Trajectory)
-    T_tool = SE3(T_tool);
+    T_wrist = SE3(T_wrist);
     
     % Number of Trajectory Points
-    number_of_trajectory_points = length(T_tool);
+    number_of_trajectory_points = length(T_wrist);
     
     % Initialize Joint Space Matrix (N x 5) matrix where N is the number 
     % of trajectory points. 
@@ -81,7 +81,7 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
         
         % Unpack the Homogeneous Transformation (4 x 4) matrix of the tool
         % w.r.t the Base Frame of the SCARA Arm.
-        T_tool_current = T_tool(trajectory_point_index);
+        T_tool_current = T_wrist(trajectory_point_index);
         
         % Convert back to a Matrix Form SE3 ---> Matrix in MATLAB
         T_wrist_current_matrix = T_tool_current.T * inv(T_wrist_tool);
@@ -91,8 +91,6 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
         L1 = L(1).d;
         L2 = L(2).a;
         L3 = L(3).a;
-%         Ltool = abs(L(5).d);
-        
         
         % Upack Current Homogenous Tool Pose
         % Position of the tool (XYZ) w.r.t the Base Frame {B} of SCARA
@@ -134,9 +132,6 @@ function q_trajectory = ik_scara_kuka_kr_6_r700z200(robot, T_tool, ...
         
         % Solve for d4
         d4 = Pz - (L1);
-        
-        % Assign theta_tool (Not an actual revolute joint)
-        theta_tool = 0;
         
         % Convert to Revolute Joints to Degrees (rad --> deg)
         if strcmp(angle_type, 'deg') 

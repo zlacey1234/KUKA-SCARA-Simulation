@@ -9,9 +9,22 @@ clc
 path_to_workspace = updatePaths();
 
 path_to_CAD = [path_to_workspace, '\KUKA_CAD'];
-%%
+%% Known Parameters
+
+% Length of the Tool from Wrist is 170 mm.
+Ltool = 0.0694;
+
+L1 = 0.185; 
+
+T_wrist_tool_value = [1  0  0  0;...
+                      0  1  0  0;...
+                      0  0  1  -Ltool;...
+                      0  0  0  1];
+                  
 % Load the SCARA Model
-mdl_scara_kuka_kr_6_r700z200
+scara = mdl_scara_kuka_kr_6_r700z200
+
+%%
 
 % Transformation to Stationary Frame {S} w.r.t the Base Frame {0}
 T_0_S = [1  0  0  0.425;...
@@ -362,7 +375,8 @@ desired_accelerations = ...
   
 [qrt, time] = ...
     generate_trajectory_linear_parabolic(scara, T_S_viapoints, T_0_S, ...
-    desired_time_intervals, desired_accelerations, 0.00001, T_wrist_tool);
+    desired_time_intervals, desired_accelerations, 0.00001, ...
+    T_wrist_tool_value);
 %%
 sample_step = 10000;
 
@@ -374,7 +388,7 @@ qrt_sample = qrt(1:sample_step:numel(time), :);
 % Joint Space of Initial SCARA Pose
 T_0_init_final = T_0_S*T_S_init_final;
 qrt_init = ik_scara_kuka_kr_6_r700z200(scara, ...
-    T_0_init_final, T_wrist_tool, ...
+    T_0_init_final, T_wrist_tool_value, 'deg', ...
     'elbowOption','up');
 
 qrt_sample = deg2rad_q_trajectory(scara, qrt_sample);
@@ -401,7 +415,7 @@ plot_feeder(T_0_feeder)
 
 state_sample_trajectory = ...
     plot_via_points_and_trajectory_joint_space(scara, T_S_viapoints, ...
-    T_0_S, qrt_sample, T_wrist_tool);
+    T_0_S, qrt_sample, T_wrist_tool_value);
 
 % plot_state_trajectory(state_sample_trajectory, time_sample, dt_sample);
 title('KUKA KR 6 R700 Z200 (SCARA RRRP) Pick-and-Place')
