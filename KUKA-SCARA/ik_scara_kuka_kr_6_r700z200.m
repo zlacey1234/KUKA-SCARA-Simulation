@@ -1,5 +1,5 @@
 function [q_trajectory, infeasible_ik_boolean] = ...
-    ik_scara_kuka_kr_6_r700z200(robot, T_wrist, T_wrist_tool, ...
+    ik_scara_kuka_kr_6_r700z200(robot, T_tool, T_wrist_tool, ...
     angleType, varargin)
 %% Function: ik_scara_kuka_kr_6_r700z200
 % Summary: The ik_scara_kuka_kr_6_r700z200 function takes the inverse 
@@ -10,9 +10,8 @@ function [q_trajectory, infeasible_ik_boolean] = ...
 %              Robotics Toolbox in MATLAB (using the SerialLink Object
 %              Class).
 %
-%   T_wrist:    A matrix containing the pose (position and orientation) of
-%               the wrist in the Homogeneous Transformation 
-%               Representation. 
+%   T_tool:    A matrix containing the pose (position and orientation) of
+%              the tool in the Homogeneous Transformation Representation. 
 %
 %   T_wrist_tool: The Transformation is specifically the Homogeneous 
 %                 Transformation of the tool (Center point between the 
@@ -54,7 +53,7 @@ function [q_trajectory, infeasible_ik_boolean] = ...
     addOptional(p, 'elbowOption', defaultElbow, ...
         @(x) any(validatestring(x, expectedElbow)));
     
-    parse(p, robot, T_wrist, T_wrist_tool, angleType, varargin{:});
+    parse(p, robot, T_tool, T_wrist_tool, angleType, varargin{:});
     
     elbow = validatestring(p.Results.elbowOption, expectedElbow);
     angle_type = validatestring(p.Results.angleType, expectedAngleTypes);
@@ -68,10 +67,10 @@ function [q_trajectory, infeasible_ik_boolean] = ...
     number_of_joints = robot.n();
     
     % Unpack the Homogenous Tool Point (or Trajectory)
-    T_wrist = SE3(T_wrist);
+    T_tool = SE3(T_tool);
     
     % Number of Trajectory Points
-    number_of_trajectory_points = length(T_wrist);
+    number_of_trajectory_points = length(T_tool);
     
     % Initialize Joint Space Matrix (N x 5) matrix where N is the number 
     % of trajectory points. 
@@ -85,8 +84,9 @@ function [q_trajectory, infeasible_ik_boolean] = ...
         
         % Unpack the Homogeneous Transformation (4 x 4) matrix of the tool
         % w.r.t the Base Frame of the SCARA Arm.
-        T_tool_current = T_wrist(trajectory_point_index);
+        T_tool_current = T_tool(trajectory_point_index);
         
+        % Propagates from the Tool Frame {T} to the Wrist Frame
         % Convert back to a Matrix Form SE3 ---> Matrix in MATLAB
         T_wrist_current_matrix = T_tool_current.T * inv(T_wrist_tool);
         
