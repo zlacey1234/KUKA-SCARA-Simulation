@@ -24,17 +24,25 @@ mdl_puma560_sym;
 
 % Define the symbolic variables for the Joints and assume they are
 % real-numbers (not complex-numbers)
-% th1 = sym('th1', 'real');
-% th2 = sym('th2', 'real');
-% th3 = sym('th3', 'real');
-% th4 = sym('th4', 'real');
-% th5 = sym('th5', 'real');
-% th6 = sym('th6', 'real');
+th1 = sym('th1', 'real');
+th2 = sym('th2', 'real');
+th3 = sym('th3', 'real');
+th4 = sym('th4', 'real');
+th5 = sym('th5', 'real');
+th6 = sym('th6', 'real');
 
-syms th1 th2 th3 th4 th5 th6
+% syms th1 th2 th3 th4 th5 th6
 
 q_symbolic = [th1 th2 th3 th4 th5 th6];
 
 % Calculate and Display the Homogeneous Transformation Matrices that
 % represent the Forward Kinematics of the Robotic Arm 
 display_forward_kinematics(puma_560, q_symbolic);
+
+%% Jacobian Explicit Method (Symbolically)
+J_explicit = jacobian_explicit(puma_560, q_symbolic, 'rad', 'symbolic')
+
+%% Singularities
+DET = simplify(det(J_explicit))
+
+singularities = solve(DET)
