@@ -1,5 +1,5 @@
 function [q_trajectory, infeasible_ik_boolean] = ...
-    ik_puma560(robot, T_tool, angleType, varargin)
+    ik_puma560(robot, T_tool, angleType, q_current, varargin)
 %% Function: ik_puma560
 % Summary: The ik_puma560 function takes the inverse kinematics of the 
 %          PUMA 560 Robotic Arm
@@ -48,12 +48,13 @@ function [q_trajectory, infeasible_ik_boolean] = ...
     addRequired(p, 'T_tool', @(x)(true));
     addRequired(p, 'angleType', ...
         @(x) any(validatestring(x, expectedAngleTypes)));
+    addRequired(p, 'q_current', @(x)(true));
     addOptional(p, 'elbowOption', defaultElbow, ...
         @(x) any(validatestring(x, expectedElbow)));
     addOptional(p, 'linkSideOption', defaultLinkSide, ...
         @(x) any(validatestring(x, expectedLinkSide)));
     
-    parse(p, robot, T_tool, angleType, varargin{:});
+    parse(p, robot, T_tool, angleType, q_current, varargin{:});
     
     elbow = validatestring(p.Results.elbowOption, expectedElbow);
     link_side = validatestring(p.Results.linkSideOption, ...
@@ -74,7 +75,7 @@ function [q_trajectory, infeasible_ik_boolean] = ...
     T_wrist_tool = T_n_tool.T;
     
     % Unpack the Homogenous Tool Point (or Trajectory)
-    T_tool = SE3(T_tool);
+    T_tool = SE3(T_tool)
     
     % Number of Trajectory Points
     number_of_trajectory_points = length(T_tool);
@@ -94,7 +95,7 @@ function [q_trajectory, infeasible_ik_boolean] = ...
         
         % Unpack the Homogeneous Transformation (4 x 4) matrix of the tool
         % w.r.t the Base Frame of the PUMA 560 Arm.
-        T_tool_current = T_tool(trajectory_point_index);
+        T_tool_current = T_tool(trajectory_point_index)
         
         % Propagates from the Tool Frame {T} to the Wrist Frame
         % Convert back to a Matrix Form SE3 ---> Matrix in MATLAB
@@ -285,37 +286,9 @@ function [q_trajectory, infeasible_ik_boolean] = ...
         % [Solution #4, Solution #8]
         [theta6_4, theta6_8] = solve_theta6(robot, ...
             [theta1_2 theta2_4 theta3_2 theta4_4 theta5_4], ...
-            T_wrist_current_matrix);
-        
-%         % Solve for theta2
-%         theta23 = atan2((-a3 - a2*cos(theta3))*Pz + ...
-%             (cos(theta1)*Px + sin(theta1)*Py) * (a2*sin(theta3) - d4), ...
-%             (a2*sin(theta3) - d4)*Pz - ...
-%             (-a3 - a2*cos(theta3)) * (cos(theta1)*Px + sin(theta1)*Py));
-%         
-%         theta2 = theta23 - theta3
-        
-%         % Solve for theta4
-%         theta4 = atan2(-r13*sin(theta1) + r23*cos(theta1), ...
-%             -r13*cos(theta1)*cos(theta23) - ...
-%             r23*sin(theta1)*cos(theta23) + sin(theta23)*r33)
-%         
-%         
-%         %%
-%         T_0_3 = robot.A([1 2 3], [theta1 theta2 theta3])
-%         
-%         inverse_homogeneous_matrix(T_0_3.T, 'numeric')
-%         
-%         T_3_6_temp = inverse_homogeneous_matrix(T_0_3.T, 'numeric') * ...
-%             T_wrist_current_matrix
-%         
-%         if (abs(T_3_6_temp(1, 3)) < tolerance) & ...
-%                 (abs(T_3_6_temp(3, 3)) < tolerance)
-%             disp('Singularity')
-%         else
-%             theta4_test = atan2(T_3_6_temp(3, 3), -T_3_6_temp(1, 3))
-%         end
-        
+            T_wrist_current_matrix); 
+
+        %% Packing the Potential Solutions
         theta_solutions(1, :) = ...
             [theta1_1 theta2_1 theta3_1 theta4_1 theta5_1 theta6_1];
         
@@ -340,28 +313,65 @@ function [q_trajectory, infeasible_ik_boolean] = ...
         theta_solutions(8, :) = ...
             [theta1_2 theta2_4 theta3_2 theta4_8 theta5_8 theta6_8];
         
-        theta_solutions
-        
+        % Initialize array that stores the Count of Joints that exceed 
+        % the Joint Limits
         exceed_joint_limit_count = zeros(8, 1);
         
+        exceed_joint_limit_array = zeros(8, number_of_joints);
+        
+        % For each joint
         for joint_index = 1:number_of_joints
-            joint_limit = L(joint_index).qlim
+            joint_limit = L(joint_index).qlim;
             
-            theta_joint = theta_solutions(:, joint_index)
+            % Unpack the Joint Value
+            theta_joint = theta_solutions(:, joint_index);
             
+            % Exceed Joint Limit Boolean: (1: exceeds, 0: does not exceed)
             exceed_joint_limit_bool = ...
-                abs(theta_joint) - joint_limit(2) > tolerance
-            
+                ~((theta_joint > joint_limit(1)) .* ...
+                (theta_joint < joint_limit(2)))
+
+            % Counts the Joint Value
             exceed_joint_limit_count = ...
                 exceed_joint_limit_count + exceed_joint_limit_bool
+            
+            exceed_joint_limit_array(:, joint_index) = ...
+                exceed_joint_limit_bool;
         end
+        
+        theta_solutions
+        rad2deg(theta_solutions)
+        exceed_joint_limit_array
         
         reduced_valid_theta_solutions = ...
             theta_solutions(exceed_joint_limit_count == 0, :)
-%         theta4_test = 
     end
     
-    q_trajectory = 0
+    num_reduced = numel(reduced_valid_theta_solutions(:,1));
+    
+    absolute_error_qrt = zeros(num_reduced, 1);
+    
+    if num_reduced == 1
+        q_trajectory = reduced_valid_theta_solutions;
+    else
+        for choice_index = 1:num_reduced
+            q_choice = reduced_valid_theta_solutions(choice_index, :);
+            
+            absolute_error_qrt(choice_index) = ...
+                sum(abs(q_choice - q_current))
+        end
+        closest_choice_index = ...
+            find(min(absolute_error_qrt) == absolute_error_qrt);
+        closest_qrt = ...
+            reduced_valid_theta_solutions(closest_choice_index, :);
+        q_trajectory = closest_qrt;
+    end
+    
+    % Convert to Revolute Joints to Degrees (rad --> deg)
+    if strcmp(angle_type, 'deg') 
+        q_trajectory = rad2deg(q_trajectory);
+    end
+    
 end
 
 function [theta2, theta23] = solve_theta2(robot, theta_1_3, T_0_wrist)
@@ -405,13 +415,15 @@ function [theta4_1, theta4_2] = solve_theta4(robot, theta1_2_3, T_0_wrist)
     T_3_6_temp_ = inverse_homogeneous_matrix(T_0_3_.T, 'numeric') * ...
             T_0_wrist
         
-    if (abs(T_3_6_temp_(1, 3)) < tolerance) & ...
+    if (abs(T_3_6_temp_(1, 3)) < tolerance) && ...
             (abs(T_3_6_temp_(3, 3)) < tolerance)
         disp('Singularity')
     else
         theta4_1 = atan2(T_3_6_temp_(3, 3), -T_3_6_temp_(1, 3))
-        
+        theta4_1 = wrapToPi(theta4_1)
+    
         theta4_2 = theta4_1 + pi
+        theta4_2 = wrapToPi(theta4_2)
     end
 end
 
@@ -434,7 +446,7 @@ end
 
 function [theta6_1, theta6_2] = ...
     solve_theta6(robot, theta1_2_3_4_5, T_0_wrist)
-%%
+%% 
 
 %%
     tolerance = 1e-6;
@@ -445,6 +457,8 @@ function [theta6_1, theta6_2] = ...
             T_0_wrist
         
     theta6_1 = atan2(-T_5_6_temp_(3, 1), T_5_6_temp_(1, 1))
+    theta6_1 = wrapToPi(theta6_1)
     
     theta6_2 = theta6_1 + pi
+    theta6_2 = wrapToPi(theta6_2)
 end
