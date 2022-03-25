@@ -24,10 +24,6 @@ function EoM = Newton_Euler_Equations_sym(robot, dof)
     % Number of Joints 
     number_of_joints = robot.n();
     
-    if dof ~= number_of_joints
-        number_of_joints = dof
-    end
-    
     % Joint (joint)
     joints = sym('q%d', [1 number_of_joints], 'real');
     
@@ -36,6 +32,11 @@ function EoM = Newton_Euler_Equations_sym(robot, dof)
     
     % Joint Acceleration (joint-dotdot)
     dotdot_joint = sym('q%ddotdot', [1 number_of_joints], 'real');
+    
+    if dof ~= number_of_joints
+        number_of_joints = dof
+        tool_bool = 0
+    end
     
     % Linear and Angular Velocity 
     v_i_i = sym(zeros(3, number_of_joints + 1));
@@ -183,8 +184,9 @@ function EoM = Newton_Euler_Equations_sym(robot, dof)
         % Following Joint (joint_index + 1) or (i + 1) [DH: tool].
         % This means the Force/Torque at the Joint considered is the
         % Force/Torque applied at the Tool. 
-        if joint_index == number_of_joints
-            T_icurr_tool = robot.tool;
+        if joint_index == number_of_joints && tool_bool == 1
+            
+            T_icurr_tool = robot.tool
             
             T_icurr_tool_matrix = T_icurr_tool.T;
         
@@ -256,5 +258,6 @@ function EoM = Newton_Euler_Equations_sym(robot, dof)
 %     
     Mass_Inertia_Matrix = equationsToMatrix(joint_ft, dotdot_joint)
     
+    simplify(Mass_Inertia_Matrix)
     EoM = joint_ft;
 end
