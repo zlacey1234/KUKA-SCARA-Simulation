@@ -1,4 +1,4 @@
-function puma = mdl_puma560(varargin)
+function [puma, puma_CAD] = mdl_puma560(varargin)
 %% Function: MDL_PUMA560
 % Summary: Creates a model of the PUMA 560 Robotic Arm
 %
@@ -39,7 +39,7 @@ function puma = mdl_puma560(varargin)
         RevoluteMDH('alpha', -pi/2, ...
                     'a', 0.0, ...
                     'd', 0.0, ...
-                    'qlim', [-223 43]*deg, ...
+                    'qlim', [-223 43]*deg, ...   % 43
                     'm', 17.40, ...
                     'r', [0.068, 0.006, 0.2028], ...
                     'I', [0.13, 0.524, 0.539, 0, 0, 0]);
@@ -71,5 +71,5 @@ function puma = mdl_puma560(varargin)
         ];
     
     puma = SerialLink(L, 'name', 'PUMA', 'tool', T_wrist_tool);
-    
+    puma_CAD = SerialLink(L, 'name', 'PUMA')
 end
